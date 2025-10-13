@@ -11,6 +11,7 @@
 
 This microservice is responsible for **one-to-one chat and messaging** between Columbia students on the LionSwap platform.  
 It enables buyers and sellers to start conversations, send messages, and retrieve chat histories. This microservice is successfully deployed on a vm on google cloud.
+![FastAPI Swagger UI](vm.png)
 
 ---
 
