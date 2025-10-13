@@ -10,10 +10,7 @@
 ## 📖 Overview
 
 This microservice is responsible for **one-to-one chat and messaging** between Columbia students on the LionSwap platform.  
-It enables buyers and sellers to start conversations, send messages, and retrieve chat histories.
-
-During **Sprint 1**, the service implements all RESTful API endpoints with placeholder logic (`NOT IMPLEMENTED`)  
-and demonstrates working deployment on Google Cloud Platform.
+It enables buyers and sellers to start conversations, send messages, and retrieve chat histories. This microservice is successfully deployed on a vm on google cloud.
 
 ---
 
@@ -51,8 +48,6 @@ All endpoints follow the **RESTful** style.
 | `POST` | `/messages`                        | Send a new message (returns NOT IMPLEMENTED)        |
 | `GET`  | `/messages/{message_id}`           | Retrieve message details                            |
 
-➡️ All routes currently return placeholder responses as required by Sprint 1.
-
 ---
 
 ## 🧰 Run Locally
@@ -71,4 +66,30 @@ pip install -r requirements.txt
 
 # Run FastAPI server
 uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+## ☁️ Deployment Details
+
+**Deployed on:** Google Cloud Platform (Compute Engine)  
+**VM Name:** lionswap-conversation-vm  
+**Region:** us-central1-c  
+**Instance Type:** e2-micro (Ubuntu 22.04 LTS)  
+**Firewall Port:** TCP 8000
+
+**Public URL:**  
+ [http://35.227.121.98:8000/docs](http://35.227.121.98:8000/docs)
+
+**Status:** Running
+
+### Commands Used
+
+```bash
+sudo apt update -y
+sudo apt install python3-venv git -y
+git clone https://github.com/wenhema/lionswap-conversation-service.git
+cd lionswap-conversation-service
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt --break-system-packages
+python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
