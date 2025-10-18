@@ -1,0 +1,36 @@
+# ============================================
+# 🧠 Python / FastAPI project ignore patterns
+# ============================================
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+
+# --- Python cache & build ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+
+# --- Environment & secrets ---
+.env
+*.db
+*.sqlite3
+
+# --- IDE / OS files ---
+.vscode/
+.idea/
+.DS_Store
+
+# --- Logs ---
+*.log
+
+# --- Test / temp ---
+pytest_cache/
+*.tmp
+*.bak

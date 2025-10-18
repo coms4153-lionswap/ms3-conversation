@@ -1,56 +1,71 @@
 from __future__ import annotations
 
-from typing import Optional
-from uuid import UUID, uuid4
 from datetime import datetime
-from typing import Annotated
 from typing import Annotated
 from pydantic import BaseModel, Field, StringConstraints
 
 
+
 class MessageBase(BaseModel):
-    conversation_id: UUID = Field(
+    conversation_id: int = Field(
         ...,
-        description="FK to ConversationRead.conversation_id.",
-        json_schema_extra={"example": "aaaa1111-bbbb-4ccc-8ddd-eeeeeeeeeeee"},
+        description="ID of the conversation this message belongs to.",
+        json_schema_extra={"example": 1},
     )
-    sender_id: UUID = Field(
+    sender_id: int = Field(
         ...,
-        description="UUID of the sender.",
-        json_schema_extra={"example": "11111111-1111-4111-8111-111111111111"},
+        description="User ID of the sender.",
+        json_schema_extra={"example": 42},
     )
-    content: Annotated[str, StringConstraints(min_length=1, max_length=1000)] = Field(
+    message_type: Annotated[str, StringConstraints(strip_whitespace=True)] = Field(
+        default="TEXT",
+        description="Type of the message: TEXT, IMAGE, or SYSTEM.",
+        json_schema_extra={"example": "TEXT"},
+    )
+    body: Annotated[str, StringConstraints(min_length=1)] = Field(
         ...,
-        description="Message body content.",
-        json_schema_extra={"example": "Hi, is this item still available?"},
+        description="Message content text or short payload for IMAGE/SYSTEM.",
+        json_schema_extra={"example": "Hey, are you still selling this item?"},
+    )
+    attachment_url: str | None = Field(
+        default=None,
+        description="Optional attachment (image or document) URL.",
+        json_schema_extra={"example": "https://example.com/image.png"},
     )
 
     model_config = {
         "json_schema_extra": {
             "examples": [
                 {
-                    "conversation_id": "aaaa1111-bbbb-4ccc-8ddd-eeeeeeeeeeee",
-                    "sender_id": "11111111-1111-4111-8111-111111111111",
-                    "content": "Hi, is this item still available?"
+                    "conversation_id": 1,
+                    "sender_id": 42,
+                    "message_type": "TEXT",
+                    "body": "Hey, are you still selling this item?",
+                    "attachment_url": None,
                 }
             ]
         }
     }
 
 
+
 class MessageCreate(MessageBase):
-    """Payload for creating a new message (Sprint 1)."""
+    """Request payload for creating a new message."""
     pass
 
 
+
 class MessageRead(MessageBase):
-    message_id: UUID = Field(
-        default_factory=uuid4,
-        description="Server-generated message ID.",
-        json_schema_extra={"example": "99999999-9999-4999-8999-999999999999"},
+    message_id: int = Field(
+        ...,
+        description="Primary key of the message (auto-increment).",
+        json_schema_extra={"example": 1001},
     )
-    timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
-        description="Message timestamp (UTC).",
-        json_schema_extra={"example": "2025-10-11T20:01:30Z"},
+    created_at: datetime = Field(
+        ...,
+        description="Timestamp when the message was created (UTC).",
+        json_schema_extra={"example": "2025-10-13T16:36:27Z"},
     )
+
+    class Config:
+        orm_mode = True

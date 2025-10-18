@@ -14,11 +14,10 @@ It enables buyers and sellers to start conversations, send messages, and retriev
 
 ## Responsibilities
 
-| Functionality                   | Description                                                                 |
-| ------------------------------- | --------------------------------------------------------------------------- |
-| **Conversations**               | Create and manage chat sessions between two users.                          |
-| **Messages**                    | Send, retrieve, and list messages within a conversation.                    |
-| **Future Expansion (Sprint 2)** | Add database persistence, timestamps, read status, and WebSocket live chat. |
+| Functionality     | Description                                              |
+| ----------------- | -------------------------------------------------------- |
+| **Conversations** | Create and manage chat sessions between two users.       |
+| **Messages**      | Send, retrieve, and list messages within a conversation. |
 
 ---
 
@@ -53,7 +52,7 @@ It enables buyers and sellers to start conversations, send messages, and retriev
 **Firewall Port:** TCP 8000
 
 **Public URL:**  
- [http://35.227.121.98:8000/docs](http://35.227.121.98:8000/docs)
+ [http://external ip address:8000/docs](http://external ip address:8000/docs)
 
 ### Commands Used
 
@@ -64,6 +63,6 @@ git clone https://github.com/wenhema/lionswap-conversation-service.git
 cd lionswap-conversation-service
 python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt --break-system-packages
+pip install -r requirements.txt
 python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
