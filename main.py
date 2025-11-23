@@ -1,11 +1,12 @@
-from fastapi import FastAPI, HTTPException
-from typing import List
+from fastapi import FastAPI, HTTPException, Header, Response # 1. 修复：补充导入 Header 和 Response
+from typing import List, Optional # 2. 修复：补充导入 Optional
 from sqlalchemy import text
 from datetime import datetime
 
 from database import engine
 from models.conversation_models import ConversationCreate, ConversationRead
 from models.message_models import MessageCreate, MessageRead
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="LionSwap Conversation & Messaging Service",
@@ -13,9 +14,16 @@ app = FastAPI(
     version="0.1-Sprint1",
 )
 
-# ============================================================
-# 🩺 Health check
-# ============================================================
+# 3. 修复：清理了可能的特殊缩进字符，确保格式正确
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://storage.googleapis.com", "http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
+
 @app.get("/health/db")
 def health_check():
     with engine.connect() as conn:
@@ -162,8 +170,13 @@ def create_message(msg: MessageCreate):
     return dict(row)
 
 
+# 4. 修复：正确添加 response 和 if_none_match 参数
 @app.get("/messages/{message_id}", response_model=MessageRead)
-def get_message(message_id: int):
+def get_message(
+    message_id: int, 
+    response: Response, 
+    if_none_match: Optional[str] = Header(None)
+):
     with engine.connect() as conn:
         row = conn.execute(
             text("SELECT * FROM Messages WHERE message_id = :mid"),
@@ -171,7 +184,16 @@ def get_message(message_id: int):
         ).mappings().first()
     if not row:
         raise HTTPException(status_code=404, detail="Message not found")
-    return dict(row)
+    
+    message_dict = dict(row)
+    etag_value = f"W/{hash(frozenset(message_dict.items()))}"
+
+    if if_none_match == etag_value:
+        response.status_code = 304
+        return response
+
+    response.headers["ETag"] = etag_value
+    return message_dict
 
 
 @app.put("/messages/{message_id}", response_model=MessageRead)
