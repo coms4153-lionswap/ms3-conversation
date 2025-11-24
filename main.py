@@ -1,12 +1,41 @@
-from fastapi import FastAPI, HTTPException, Header, Response # 1. 修复：补充导入 Header 和 Response
-from typing import List, Optional # 2. 修复：补充导入 Optional
+from fastapi import FastAPI, HTTPException, Header, Response
+from typing import List, Optional #
 from sqlalchemy import text
 from datetime import datetime
+import time
+from concurrent.futures import ThreadPoolExecutor
+import uuid
+from datetime import datetime
+from fastapi import HTTPException
+
+# Thread pool with 4 worker threads (you can change to 2 or 8)
+executor = ThreadPoolExecutor(max_workers=4)
+
+# In-memory task status store
+TASK_STATUS = {}
 
 from database import engine
 from models.conversation_models import ConversationCreate, ConversationRead
 from models.message_models import MessageCreate, MessageRead
 from fastapi.middleware.cors import CORSMiddleware
+
+def run_heavy_task(task_id: str, conversation_id: int):
+    """
+    Heavy background job executed inside a worker thread.
+    """
+    TASK_STATUS[task_id] = {
+        "status": "running",
+        "started_at": datetime.utcnow()
+    }
+
+    # simulate expensive computation (NLP, DB aggregation, etc)
+    time.sleep(20)
+
+    TASK_STATUS[task_id] = {
+        "status": "completed",
+        "completed_at": datetime.utcnow(),
+        "result": f"Summary for conversation {conversation_id} generated."
+    }
 
 app = FastAPI(
     title="LionSwap Conversation & Messaging Service",
@@ -14,7 +43,7 @@ app = FastAPI(
     version="0.1-Sprint1",
 )
 
-# 3. 修复：清理了可能的特殊缩进字符，确保格式正确
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://storage.googleapis.com", "http://localhost:5173"],
@@ -32,7 +61,7 @@ def health_check():
 
 
 # ============================================================
-# 💬 Conversations Endpoints
+# Conversations Endpoints
 # ============================================================
 
 @app.get("/conversations", response_model=List[ConversationRead])
@@ -117,7 +146,7 @@ def delete_conversation(conversation_id: int):
 
 
 # ============================================================
-# 📨 Messages Endpoints
+# Messages Endpoints
 # ============================================================
 
 @app.get("/conversations/{conversation_id}/messages", response_model=List[MessageRead])
@@ -153,7 +182,7 @@ def create_message(msg: MessageCreate):
 
         message_id = result.lastrowid
 
-        # update conversation's last_message_at
+        
         conn.execute(
             text("UPDATE Conversations SET last_message_at = NOW() WHERE conversation_id = :cid"),
             {"cid": msg.conversation_id},
@@ -235,3 +264,36 @@ def delete_message(message_id: int):
     if result.rowcount == 0:
         raise HTTPException(status_code=404, detail="Message not found")
     return {"deleted": True, "message_id": message_id}
+# ============================================================
+# Async job trigger (202 Accepted)
+# ============================================================
+
+@app.post("/conversations/{conversation_id}/build-summary", status_code=202)
+def build_summary(conversation_id: int):
+    """
+    Trigger an async job and return 202 Accepted.
+    """
+    task_id = str(uuid.uuid4())
+
+    TASK_STATUS[task_id] = {
+        "status": "queued",
+        "created_at": datetime.utcnow()
+    }
+
+    # submit the heavy task to thread pool
+    executor.submit(run_heavy_task, task_id, conversation_id)
+
+    return {
+        "detail": "Job accepted.",
+        "task_id": task_id,
+        "poll_url": f"/tasks/{task_id}"
+    }
+# ============================================================
+# Polling endpoint
+# ============================================================
+
+@app.get("/tasks/{task_id}")
+def get_task_status(task_id: str):
+    if task_id not in TASK_STATUS:
+        raise HTTPException(status_code=404, detail="Unknown task ID.")
+    return TASK_STATUS[task_id]
