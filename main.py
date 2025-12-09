@@ -9,6 +9,7 @@ from datetime import datetime
 from fastapi import HTTPException
 from fastapi import Depends
 from auth_utils import verify_token
+from typing import Dict, Any
 
 
 
@@ -74,7 +75,6 @@ def get_conversations(user: Dict[str, Any] = Depends(verify_token)):
     """
     获取对话列表。需要 JWT 认证。
     """
-    # verify_token 已经帮我们处理了解码和错误，这里直接拿数据
     user_id = user["user_id"]
     role = user.get("role", "user")
 
