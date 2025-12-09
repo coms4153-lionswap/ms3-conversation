@@ -70,9 +70,13 @@ def health_check():
 
 
 @app.get("/conversations")
-def get_conversations(user = Depends(verify_token)):
+def get_conversations(user: Dict[str, Any] = Depends(verify_token)):
+    """
+    获取对话列表。需要 JWT 认证。
+    """
+    # verify_token 已经帮我们处理了解码和错误，这里直接拿数据
     user_id = user["user_id"]
-    role = user["role"]
+    role = user.get("role", "user")
 
     with engine.connect() as conn:
         if role == "admin":
@@ -82,8 +86,8 @@ def get_conversations(user = Depends(verify_token)):
                 text("SELECT * FROM conversations WHERE user1_id=:uid OR user2_id=:uid"),
                 {"uid": user_id}
             )
-
-        return {"conversations": [dict(row) for row in result]}
+        # 将结果转换为字典列表
+        return {"conversations": [dict(row._mapping) for row in result]}
 
 @app.post("/conversations", response_model=ConversationRead)
 def create_conversation(conv: ConversationCreate):
