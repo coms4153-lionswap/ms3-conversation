@@ -7,6 +7,8 @@ from concurrent.futures import ThreadPoolExecutor
 import uuid
 from datetime import datetime
 from fastapi import HTTPException
+from fastapi import Depends
+from auth_middleware import verify_token
 
 # Thread pool with 4 worker threads (you can change to 2 or 8)
 executor = ThreadPoolExecutor(max_workers=4)
@@ -64,13 +66,12 @@ def health_check():
 # Conversations Endpoints
 # ============================================================
 
-@app.get("/conversations", response_model=List[ConversationRead])
-def list_conversations():
+@app.get("/conversations")
+def list_conversations(current_user = Depends(verify_token)):
     with engine.connect() as conn:
-        result = conn.execute(text("SELECT * FROM Conversations ORDER BY conversation_id"))
+        result = conn.execute(text("SELECT * FROM Conversations"))
         rows = [dict(row._mapping) for row in result]
     return rows
-
 
 @app.post("/conversations", response_model=ConversationRead)
 def create_conversation(conv: ConversationCreate):
