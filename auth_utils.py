@@ -7,12 +7,13 @@ SECURITY_SERVICE_URL = "http://35.196.138.189:8001/security/decode"
 import requests
 from fastapi import HTTPException, Header
 
-def verify_token(authorization: str = Header(None)):
-    if authorization is None:
+def verify_token(Authorization: str = Header(None)):
+    authoriztion = Authorization
+    if authoriztion is None:
         raise HTTPException(401, "Missing Authorization header")
 
     try:
-        scheme, token = authorization.split(" ")
+        scheme, token = authoriztion.split(" ")
         if scheme.lower() != "bearer":
             raise HTTPException(401, "Invalid auth scheme")
     except:
