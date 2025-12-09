@@ -8,7 +8,9 @@ import uuid
 from datetime import datetime
 from fastapi import HTTPException
 from fastapi import Depends
-from auth_middleware import verify_token
+from auth_utils import verify_token
+
+
 
 # Thread pool with 4 worker threads (you can change to 2 or 8)
 executor = ThreadPoolExecutor(max_workers=4)
@@ -66,12 +68,22 @@ def health_check():
 # Conversations Endpoints
 # ============================================================
 
+
 @app.get("/conversations")
-def list_conversations(current_user = Depends(verify_token)):
+def get_conversations(user = Depends(verify_token)):
+    user_id = user["user_id"]
+    role = user["role"]
+
     with engine.connect() as conn:
-        result = conn.execute(text("SELECT * FROM Conversations"))
-        rows = [dict(row._mapping) for row in result]
-    return rows
+        if role == "admin":
+            result = conn.execute(text("SELECT * FROM conversations"))
+        else:
+            result = conn.execute(
+                text("SELECT * FROM conversations WHERE user1_id=:uid OR user2_id=:uid"),
+                {"uid": user_id}
+            )
+
+        return {"conversations": [dict(row) for row in result]}
 
 @app.post("/conversations", response_model=ConversationRead)
 def create_conversation(conv: ConversationCreate):
@@ -271,17 +283,13 @@ def delete_message(message_id: int):
 
 @app.post("/conversations/{conversation_id}/build-summary", status_code=202)
 def build_summary(conversation_id: int):
-    """
-    Trigger an async job and return 202 Accepted.
-    """
+   
     task_id = str(uuid.uuid4())
 
     TASK_STATUS[task_id] = {
         "status": "queued",
         "created_at": datetime.utcnow()
     }
-
-    # submit the heavy task to thread pool
     executor.submit(run_heavy_task, task_id, conversation_id)
 
     return {
@@ -289,9 +297,7 @@ def build_summary(conversation_id: int):
         "task_id": task_id,
         "poll_url": f"/tasks/{task_id}"
     }
-# ============================================================
-# Polling endpoint
-# ============================================================
+
 
 @app.get("/tasks/{task_id}")
 def get_task_status(task_id: str):
