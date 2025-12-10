@@ -78,9 +78,11 @@ def get_conversations(user: Dict[str, Any] = Depends(verify_token)):
     user_id = user["user_id"]
     role = user.get("role", "user")
 
+    print(user_id)
+
     with engine.connect() as conn:
         if role == "admin":
-            result = conn.execute(text("SELECT * FROM conversations"))
+            result = conn.execute(text("SELECT * FROM Conversations"))
         else:
             result = conn.execute(
                 text("SELECT * FROM conversations WHERE user1_id=:uid OR user2_id=:uid"),

@@ -5,7 +5,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 # 定义安全模式，这将使 Swagger UI 出现 "Authorize" 按钮
 security = HTTPBearer()
 
-SECURITY_SERVICE_URL = "http://35.196.138.189:8001/security/decode"
+SECURITY_SERVICE_URL = "http://34.74.164.213:8001/security/decode"
 
 def verify_token(credentials: HTTPAuthorizationCredentials = Security(security)):
     """
@@ -44,4 +44,5 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Security(security))
         )
 
     # 返回用户信息: { "user_id": 11, "role": "admin" }
+    print(response.json())
     return response.json()
