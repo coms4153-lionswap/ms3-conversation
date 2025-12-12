@@ -58,6 +58,20 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+def get_user_uni_from_identity_service(user_id: int) -> str:
+    """Fetch user's uni from the identity/security service"""
+    try:
+        # Try to get user info from security service
+        response = requests.get(f"http://127.0.0.1:8001/users/{user_id}", timeout=5)
+        if response.status_code == 200:
+            user_data = response.json()
+            return user_data.get("uni", f"user_{user_id}")
+    except Exception as e:
+        print(f"Error fetching user {user_id} from identity service: {e}")
+    
+    # Fallback to placeholder
+    return f"user_{user_id}"
+
 @app.get("/health/db")
 def health_check():
     with engine.connect() as conn:
@@ -82,27 +96,72 @@ def get_conversations(user: Dict[str, Any] = Depends(verify_token)):
 
     with engine.connect() as conn:
         if role == "admin":
-            result = conn.execute(text("SELECT * FROM Conversations"))
+            query = text("""
+                SELECT c.*, 
+                       ua.student_name as user_a_name, ua.uni as user_a_uni,
+                       ub.student_name as user_b_name, ub.uni as user_b_uni
+                FROM Conversations c
+                LEFT JOIN Users ua ON c.user_a_id = ua.user_id
+                LEFT JOIN Users ub ON c.user_b_id = ub.user_id
+            """)
+            result = conn.execute(query)
         else:
-            result = conn.execute(
-                text("SELECT * FROM conversations WHERE user1_id=:uid OR user2_id=:uid"),
-                {"uid": user_id}
-            )
+            query = text("""
+                SELECT c.*, 
+                       ua.student_name as user_a_name, ua.uni as user_a_uni,
+                       ub.student_name as user_b_name, ub.uni as user_b_uni
+                FROM Conversations c
+                LEFT JOIN Users ua ON c.user_a_id = ua.user_id
+                LEFT JOIN Users ub ON c.user_b_id = ub.user_id
+                WHERE c.user_a_id=:uid OR c.user_b_id=:uid
+            """)
+            result = conn.execute(query, {"uid": user_id})
         # 将结果转换为字典列表
         return {"conversations": [dict(row._mapping) for row in result]}
 
 @app.post("/conversations", response_model=ConversationRead)
 def create_conversation(conv: ConversationCreate):
-    with engine.connect() as conn:
+    with engine.begin() as conn:
         # enforce user_a_id < user_b_id convention
         user_a_id, user_b_id = sorted([conv.user_a_id, conv.user_b_id])
+        
+        # Get uni values from request or use fallback
+        user_a_uni = getattr(conv, 'user_a_uni', f"user_{user_a_id}")
+        user_b_uni = getattr(conv, 'user_b_uni', f"user_{user_b_id}")
+        
+        # Match sorted IDs with their unis
+        unis = {conv.user_a_id: getattr(conv, 'user_a_uni', f"user_{conv.user_a_id}"),
+                conv.user_b_id: getattr(conv, 'user_b_uni', f"user_{conv.user_b_id}")}
 
+        # Auto-create users if they don't exist
+        for user_id in [user_a_id, user_b_id]:
+            print(f"Checking if user {user_id} exists...")
+            check = conn.execute(text("SELECT user_id FROM Users WHERE user_id = :user_id"), {"user_id": user_id}).fetchone()
+            print(f"User {user_id} exists: {check is not None}")
+            if not check:
+                try:
+                    print(f"Creating user {user_id} with uni {unis[user_id]}...")
+                    conn.execute(text("INSERT INTO Users (user_id, uni, student_name, email) VALUES (:user_id, :uni, :name, :email)"), 
+                                {"user_id": user_id, "uni": unis[user_id], "name": unis[user_id], "email": f"{unis[user_id]}@columbia.edu"})
+                    print(f"User {user_id} created successfully")
+                except Exception as e:
+                    print(f"Error creating user {user_id}: {e}")
+                    raise
+
+        # Check if conversation already exists
+        check_query = text("SELECT * FROM Conversations WHERE user_a_id = :user_a AND user_b_id = :user_b")
+        existing = conn.execute(check_query, {"user_a": user_a_id, "user_b": user_b_id}).mappings().first()
+        
+        if existing:
+            print(f"Conversation already exists: {existing['conversation_id']}")
+            return dict(existing)
+        
+        print(f"Creating conversation between {user_a_id} and {user_b_id}...")
         insert_stmt = text("""
             INSERT INTO Conversations (user_a_id, user_b_id)
             VALUES (:user_a_id, :user_b_id)
         """)
         result = conn.execute(insert_stmt, {"user_a_id": user_a_id, "user_b_id": user_b_id})
-        conn.commit()
 
         conversation_id = result.lastrowid
 
